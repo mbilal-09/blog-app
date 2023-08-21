@@ -1,4 +1,4 @@
-#nav-logIn, #nav-logOut, #create-account-btn, #userName{
+#nav-logIn, #nav-logOut, #create-account-btn, #userName, #logo{
     cursor: pointer;
 }
 
@@ -43,12 +43,15 @@ textarea {
     width: 100%;
     padding: 10px;
     margin-bottom: 15px;
-    border: 1px solid #ddd;
+    border: none;
+    border-radius: none;
+    border-bottom: 2px solid #ddd;
     border-radius: 4px;
 }
 
 input[type="file"] {
     margin-bottom: 0;
+    cursor: pointer;
 }
 
 input[type="submit"] {
@@ -111,10 +114,19 @@ input[type="submit"] {
     margin: 0;
 }
 
-.all-post-cards:hover {
+.cards:hover {
     box-shadow: 2px 2px 10px #ccc;
 }
 
 input {
     outline: none;
+}
+
+.del-btn {
+    cursor: pointer;
+}
+
+#blog-title, #blog-desc {
+    border: 1px solid #ddd;
+    outline: none !important;
 }
