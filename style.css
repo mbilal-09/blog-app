@@ -1,4 +1,4 @@
-#nav-logIn, #nav-logOut, #create-account-btn, #userName, #logo{
+#nav-logIn, #nav-logOut, #create-account-btn, #userName, #logo, .edit-btn, .del-btn{
     cursor: pointer;
 }
 
@@ -118,15 +118,16 @@ input[type="submit"] {
     box-shadow: 2px 2px 10px #ccc;
 }
 
-input {
+input, textarea {
     outline: none;
 }
 
-.del-btn {
-    cursor: pointer;
-}
-
-#blog-title, #blog-desc {
+#blog-title, #blog-desc, #edit-title-input, #edit-desc-input, #old-password, #new-password, #confirm-new-password {
     border: 1px solid #ddd;
     outline: none !important;
+}
+
+#old-password, #new-password, #confirm-new-password {
+    width: 20%;
+    display: block;
 }

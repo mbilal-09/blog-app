@@ -5,6 +5,9 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
 } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-auth.js";
 import {
   getFirestore,
@@ -43,7 +46,7 @@ const auth = getAuth();
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-let uid, currentUserInfo, userImgUrl, isUser;
+let uid, currentUserInfo, userImgUrl, userPassword, isUser;
 const loader = document.getElementById("loader");
 const signUpForm = document.getElementById("signUp-form");
 const logInForm = document.getElementById("logIn-form");
@@ -72,12 +75,14 @@ const myBlogs = document.getElementById("my-blogs");
 const allPost = document.getElementById("all-post");
 const profile = document.getElementById("profile");
 const logo = document.getElementById("logo");
+const setPassBtn = document.getElementById("set-pass-btn");
 
 onAuthStateChanged(auth, (user) => {
   if (user) {
     uid = user.uid;
     isUser = true;
     loader.classList.add("d-none");
+    loader.classList.remove("d-block");
     dashboard.classList.add("d-block");
     dashboard.classList.remove("d-none");
     navLogIn.classList.add("d-none");
@@ -109,6 +114,7 @@ async function getUserInfo() {
     currentUserInfo = docSnap.data();
     userName.innerText = currentUserInfo.firstName;
     userImgUrl = currentUserInfo.userImg;
+    userPassword = currentUserInfo.password;
   } else {
     console.log("No such document!");
   }
@@ -129,21 +135,6 @@ function signIn(e) {
 }
 logInBtn.addEventListener("click", signIn);
 
-function uploadImg() {
-  const imgRef = ref(storage, `users/${signUpImg.files[0].name}`);
-  uploadBytes(imgRef, signUpImg.files[0]).then((snapshot) => {
-    getDownloadURL(imgRef)
-      .then((url) => {
-        userImgUrl = url;
-
-        const profileImage = document.getElementById("form-profile-image");
-        profileImage.src = userImgUrl;
-      })
-      .catch((err) => console.error(err));
-  });
-}
-signUpImg.addEventListener("change", uploadImg);
-
 async function register(e) {
   e.preventDefault();
 
@@ -157,15 +148,27 @@ async function register(e) {
       const user = userCredential.user;
       uid = user.uid;
 
+      const imgRef = ref(storage, `users/${signUpImg.files[0].name}`);
+      await uploadBytes(imgRef, signUpImg.files[0]).then(async (snapshot) => {
+        await getDownloadURL(imgRef)
+          .then((url) => {
+            userImgUrl = url;
+            const profileImage = document.getElementById("form-profile-image");
+            profileImage.src = userImgUrl;
+          })
+          .catch((err) => console.error(err));
+      });
+
       const userObj = {
         firstName: firstName.value,
         lastName: lastName.value,
         email: signUpEmail.value,
         password: signUpPass.value,
-        userImg: await userImgUrl,
+        userImg: userImgUrl,
       };
-
       await setDoc(doc(db, "users", uid), userObj);
+
+      getUserInfo();
     } catch (error) {
       const errorCode = error.code;
       const errorMessage = error.message;
@@ -240,6 +243,7 @@ function getBlogs() {
     querySnapshot.forEach((doc) => {
       const { author, date, desc, imgUrl, title } = doc.data();
       let card = `<div class="cards">
+      <div>
         <div class="d-flex align-items-center">
             <img src="${imgUrl}" alt="" height="50px" width="50px">
             <div class="ms-2">
@@ -255,49 +259,47 @@ function getBlogs() {
         <div>
         
             <span class="del-btn" data-id=${doc.id}>Delete</span>
-            <span class="edit-btn">Edit</span>
+            <span class="edit-btn" data-id="${doc.id}-edit">Edit</span>
         </div>
-        </div>`;
+      </div>
+      <div class="d-none">
+      <input type="text" value="${title}" class="">
+      <textarea class="" rows="4">${desc}</textarea>
+      <button class="btn btn-dark save-btn" data-id="${doc.id}-edit">Save</button>
+      </div>
+      </div>`;
 
       myBlogs.innerHTML += card;
     });
 
-    // let editButtons = document.getElementsByClassName('edit-btn')
-    // Array.from(editButtons).forEach((btn) => {
-    //     btn.addEventListener('click', (e) => {
-    //         let blogId = e.target.getAttribute("data-id");
-    //         if (blogId) {
-    //             const editTitle =   e.target.parentNode.parentNode.children[0].children[1].children[0].innerHTML
-    //             const editDesc = e.target.parentNode.parentNode.children[1].children[0].innerHTML
-    //             console.log(editTitle);
-    //             console.log(editDesc);
-    //             e.target.parentNode.children[1].children[0].children[0].children[1].children[0].value = editTitle;
-    //             e.target.parentNode.children[1].children[0].children[0].children[1].children[1].value = editDesc;
-    //         }
-    //     })
-    // })
+    let editButtons = document.getElementsByClassName("edit-btn");
+    Array.from(editButtons).forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        btn.parentNode.parentNode.classList.add("d-none");
+        btn.parentNode.parentNode.classList.remove("d-block");
+        btn.parentNode.parentNode.nextElementSibling.classList.add("d-block");
+        btn.parentNode.parentNode.nextElementSibling.classList.remove("d-none");
+      });
+    });
 
-    // let saveButtons = document.getElementsByClassName('save-btn')
-    // Array.from(saveButtons).forEach((btn) => {
-    //     btn.addEventListener('click', async (e) => {
-    //         let id = e.target.getAttribute("data-id");
-    //         let updateId = id.slice(0, id.length - 5);
-    //         let saveTitle = e.target.parentNode.parentNode.children[1].children[0].value
-    //         let saveDesc = e.target.parentNode.parentNode.children[1].children[1].value
+    let saveButtons = document.getElementsByClassName("save-btn");
+    Array.from(saveButtons).forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        let id = e.target.getAttribute("data-id");
+        let updateId = id.slice(0, id.length - 5);
+        let saveTitle = btn.previousElementSibling.previousElementSibling.value;
+        let saveDesc = btn.previousElementSibling.value;
 
-    //         const querySnapshot = await doc(db, "blogs", updateId);
-
-    //         querySnapshot.forEach((doc) => {
-    //             updateDoc(doc.ref, { title : saveTitle, desc : saveDesc })
-    //                 .then(() => {
-    //                     console.log("Document successfully updated!");
-    //                 })
-    //                 .catch((error) => {
-    //                     console.error("Error updating document:", error);
-    //                 });
-    //         });
-    //     })
-    // })
+        const querySnapshot = await doc(db, "blogs", updateId);
+        updateDoc(querySnapshot, { title: saveTitle, desc: saveDesc })
+          .then(() => {
+            console.log("Document successfully updated!");
+          })
+          .catch((error) => {
+            console.error("Error updating document:", error);
+          });
+      });
+    });
 
     let deleteButtons = document.getElementsByClassName("del-btn");
     Array.from(deleteButtons).forEach((btn) => {
@@ -380,5 +382,50 @@ function backToHome() {
     signUp.classList.remove("d-block");
   }
 }
-
 logo.addEventListener("click", backToHome);
+
+function reauthentication() {
+  const oldPasswordInput = document.getElementById("old-password").value;
+  const newPasswordInput = document.getElementById("new-password").value;
+  const confirmPasswordInput = document.getElementById("confirm-new-password").value;
+
+  if (oldPasswordInput === userPassword && newPasswordInput === confirmPasswordInput) {
+    const user = auth.currentUser;
+    console.log(user);
+    const email = currentUserInfo.email;
+    const credential = EmailAuthProvider.credential(
+      email,
+      oldPasswordInput
+    );
+    reauthenticateWithCredential(user, credential)
+      .then(() => {
+        oldPasswordInput.value = '';
+        newPasswordInput.value = '';
+        confirmPasswordInput.value = '';
+        setNewPassword(newPasswordInput);
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  } else {
+    alert("Fill all fields correctly")
+  }
+};
+setPassBtn.addEventListener("click", reauthentication);
+
+function setNewPassword(newPassword) {
+  const user = auth.currentUser;
+  updatePassword(user, newPassword)
+      .then(async () => {
+        const passRef = await doc(db, "users", uid);
+        updateDoc(passRef, { password: newPassword })
+          .then(() => {
+          })
+          .catch((error) => {
+            console.error("Error updating document:", error);
+          });
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+}
